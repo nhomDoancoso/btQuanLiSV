@@ -57,8 +57,25 @@ public class HomeFragment  extends Fragment {
             showEditStudentInputDialog(student);
         });
 
-//        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new SwipeToDeleteCallback());
-//        itemTouchHelper.attachToRecyclerView(recyclerViewStudent);
+// Gắn ItemTouchHelper vào RecyclerView để bắt sự kiện swipe
+        // Gắn ItemTouchHelper vào RecyclerView để bắt sự kiện swipe
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                // Xoá sinh viên khi người dùng swipe trên item
+                int position = viewHolder.getAdapterPosition();
+                Student student = studentList.get(position);
+                int mssv = student.getMssv();
+                deleteStudentFromFirestore(mssv);
+            }
+        });
+
+        itemTouchHelper.attachToRecyclerView(recyclerViewStudent);
 
         return rootView;
     }
@@ -111,16 +128,45 @@ public class HomeFragment  extends Fragment {
         builder.create().show();
     }
 
+
     private void updateStudentInFirestore(int originalMssv, String mssv, String name, float dtb, String khoa) {
         FirebaseFirestore firestore = FirebaseFirestore.getInstance();
         firestore.collection("StudentCollection")
                 .document(String.valueOf(originalMssv))
-                .update("mssv", Integer.parseInt(mssv), "Name", name, "DTB", dtb, "khoa", khoa)
-                .addOnSuccessListener(aVoid -> {
-                    fetchStudentFromFirestore(); // Update the student list after saving
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        // Document exists, perform update
+                        firestore.collection("StudentCollection")
+                                .document(String.valueOf(originalMssv))
+                                .update("mssv", Integer.parseInt(mssv), "Name", name, "DTB", dtb, "khoa", khoa)
+                                .addOnSuccessListener(aVoid -> {
+                                    fetchStudentFromFirestore(); // Update the student list after saving
+                                })
+                                .addOnFailureListener(e -> {
+                                    // Handle update failure
+                                });
+                    } else {
+                        // Document does not exist, handle error
+                        Toast.makeText(requireContext(), "Student not found!", Toast.LENGTH_SHORT).show();
+                    }
                 })
                 .addOnFailureListener(e -> {
-                    // Handle update failure
+                    // Handle get document failure
+                });
+    }
+
+    private void deleteStudentFromFirestore(int mssv) {
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+        firestore.collection("StudentCollection")
+                .document(String.valueOf(mssv))
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+                    // Delete successful, update student list and notify RecyclerView
+                    fetchStudentFromFirestore();
+                })
+                .addOnFailureListener(e -> {
+                    // Handle delete failure if needed
                 });
     }
     /////////
@@ -129,17 +175,18 @@ public class HomeFragment  extends Fragment {
         firestore.collection("StudentCollection")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
-                    ArrayList<Student> studentList = new ArrayList<>();
+                    studentList.clear(); // Clear the existing list before adding new data
                     for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
                         Student student = documentSnapshot.toObject(Student.class);
                         studentList.add(student);
                     }
-                    studentAdapter.setStudentList(studentList);
+                    studentAdapter.notifyDataSetChanged(); // Notify the adapter about the data change
                 })
                 .addOnFailureListener(e -> {
                     // Handle fetch failure if needed
                 });
     }
+
 
 
 
@@ -228,52 +275,6 @@ public class HomeFragment  extends Fragment {
                     // Handle save failure
                 });
     }
-//    private class SwipeToDeleteCallback extends ItemTouchHelper.SimpleCallback {
-//        public SwipeToDeleteCallback() {
-//            super(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT);
-//        }
-//
-//        @Override
-//        public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
-//            return false;
-//        }
-//
-//        @Override
-//        public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-//            int position = viewHolder.getAdapterPosition();
-//            Student deletedStudent = studentList.get(position);
-//
-//            // Remove the student from Firestore
-//            deleteStudentFromFirestore(deletedStudent);
-//
-//            // Remove the student from the local list and notify the adapter
-//            studentList.remove(position);
-//            studentAdapter.notifyItemRemoved(position);
-//        }
-//    }
-//    private void deleteStudentFromFirestore(Student student) {
-//        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
-//        firestore.collection("StudentCollection")
-//                .document(String.valueOf(student.getMssv()))
-//                .delete()
-//                .addOnSuccessListener(aVoid -> {
-//                    // Student deleted successfully from Firestore, now remove it from the local list
-//                    int position = studentList.indexOf(student);
-//                    if (position != -1) {
-//                        studentList.remove(position);
-//                        studentAdapter.notifyItemRemoved(position);
-//                    }
-//                    Toast.makeText(requireContext(), "Student deleted successfully.", Toast.LENGTH_SHORT).show();
-//                })
-//                .addOnFailureListener(e -> {
-//                    Toast.makeText(requireContext(), "Failed to delete student.", Toast.LENGTH_SHORT).show();
-//                    // If deletion fails, add the student back to the list
-//                    int position = studentList.indexOf(student);
-//                    if (position != -1) {
-//                        studentList.add(position, student);
-//                        studentAdapter.notifyItemInserted(position);
-//                    }
-//                });
-//    }
+
 
 }
