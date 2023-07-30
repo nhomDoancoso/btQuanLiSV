@@ -20,6 +20,7 @@
         android:layout_margin="16dp"
         android:background="@android:color/transparent" />
 
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAction"
         android:layout_width="wrap_content"

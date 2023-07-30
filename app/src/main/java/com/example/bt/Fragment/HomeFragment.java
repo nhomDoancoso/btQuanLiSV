@@ -16,6 +16,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.bt.Adapter.KhoaAdapter;
 import com.example.bt.Adapter.StudentAdapter;
@@ -55,6 +56,7 @@ public class HomeFragment  extends Fragment {
         return rootView;
     }
 
+    /////////
     private void fetchStudentFromFirestore() {
         FirebaseFirestore firestore = FirebaseFirestore.getInstance();
         firestore.collection("StudentCollection")
@@ -85,6 +87,10 @@ public class HomeFragment  extends Fragment {
 
         // Spinner setup (Replace "spinnerKhoa" with the actual ID of your spinner in dialog_student_input.xml)
         Spinner spinnerKhoa = view.findViewById(R.id.spinnerKhoa);
+
+        // Fetch Khoa information from Firestore and populate the Spinner
+        fetchKhoaFromFirestore(spinnerKhoa);
+
         ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item);
         spinnerKhoa.setAdapter(adapter);
 
@@ -104,6 +110,9 @@ public class HomeFragment  extends Fragment {
 
                     // Save student data to Firestore
                     saveStudentToFirestore(mssv, name, dtbFloat, selectedKhoa);
+                } else {
+                    // Display an error message if any of the required fields are empty
+                    Toast.makeText(requireContext(), "Please fill in all the required fields.", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -112,6 +121,27 @@ public class HomeFragment  extends Fragment {
 
         builder.create().show();
     }
+
+    private void fetchKhoaFromFirestore(Spinner spinnerKhoa) {
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+        firestore.collection("KhoaCollection")
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    ArrayList<String> khoaList = new ArrayList<>();
+                    for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
+                        Khoa khoa = documentSnapshot.toObject(Khoa.class);
+                        khoaList.add(khoa.getName());
+                    }
+                    ArrayAdapter<String> adapter = (ArrayAdapter<String>) spinnerKhoa.getAdapter();
+                    adapter.clear();
+                    adapter.addAll(khoaList);
+                    adapter.notifyDataSetChanged();
+                })
+                .addOnFailureListener(e -> {
+                    // Handle fetch failure if needed
+                });
+    }
+
 
     private void saveStudentToFirestore(String mssv, String name, float dtb, String khoa) {
         // Get a Firestore instance
