@@ -53,9 +53,76 @@ public class HomeFragment  extends Fragment {
             showStudentInputDialog();
         });
 
+        studentAdapter.setOnItemClickListener(student -> {
+            showEditStudentInputDialog(student);
+        });
+
+//        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new SwipeToDeleteCallback());
+//        itemTouchHelper.attachToRecyclerView(recyclerViewStudent);
+
         return rootView;
     }
+    private void showEditStudentInputDialog(Student student) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("Edit Student Information");
 
+        View view = View.inflate(getContext(), R.layout.dialog_student_input, null);
+        final TextInputEditText editTextMSSV = view.findViewById(R.id.editTextMSSV);
+        final TextInputEditText editTextName = view.findViewById(R.id.editTextName);
+        final TextInputEditText editTextDTB = view.findViewById(R.id.editTextDTB);
+        Spinner spinnerKhoa = view.findViewById(R.id.spinnerKhoa);
+
+        // Set the existing data in the input fields
+        editTextMSSV.setText(String.valueOf(student.getMssv()));
+        editTextName.setText(student.getName());
+        editTextDTB.setText(String.valueOf(student.getDTB()));
+
+        // Fetch Khoa information from Firestore and populate the Spinner
+        fetchKhoaFromFirestore(spinnerKhoa);
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item);
+        spinnerKhoa.setAdapter(adapter);
+
+        // Set the existing value as the selected item in the Spinner
+        spinnerKhoa.setSelection(adapter.getPosition(student.getKhoa()));
+
+        builder.setView(view);
+
+        builder.setPositiveButton("Save", (dialog, which) -> {
+            String mssv = editTextMSSV.getText().toString().trim();
+            String name = editTextName.getText().toString().trim();
+            String dtb = editTextDTB.getText().toString().trim();
+            String selectedKhoa = spinnerKhoa.getSelectedItem().toString();
+
+            if (!mssv.isEmpty() && !name.isEmpty() && !dtb.isEmpty()) {
+                // Convert DTB to float
+                float dtbFloat = Float.parseFloat(dtb);
+
+                // Save the updated student data to Firestore
+                updateStudentInFirestore(student.getMssv(), mssv, name, dtbFloat, selectedKhoa);
+            } else {
+                // Display an error message if any of the required fields are empty
+                Toast.makeText(requireContext(), "Please fill in all the required fields.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", null);
+
+        builder.create().show();
+    }
+
+    private void updateStudentInFirestore(int originalMssv, String mssv, String name, float dtb, String khoa) {
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+        firestore.collection("StudentCollection")
+                .document(String.valueOf(originalMssv))
+                .update("mssv", Integer.parseInt(mssv), "Name", name, "DTB", dtb, "khoa", khoa)
+                .addOnSuccessListener(aVoid -> {
+                    fetchStudentFromFirestore(); // Update the student list after saving
+                })
+                .addOnFailureListener(e -> {
+                    // Handle update failure
+                });
+    }
     /////////
     private void fetchStudentFromFirestore() {
         FirebaseFirestore firestore = FirebaseFirestore.getInstance();
@@ -161,4 +228,52 @@ public class HomeFragment  extends Fragment {
                     // Handle save failure
                 });
     }
+//    private class SwipeToDeleteCallback extends ItemTouchHelper.SimpleCallback {
+//        public SwipeToDeleteCallback() {
+//            super(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT);
+//        }
+//
+//        @Override
+//        public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+//            return false;
+//        }
+//
+//        @Override
+//        public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+//            int position = viewHolder.getAdapterPosition();
+//            Student deletedStudent = studentList.get(position);
+//
+//            // Remove the student from Firestore
+//            deleteStudentFromFirestore(deletedStudent);
+//
+//            // Remove the student from the local list and notify the adapter
+//            studentList.remove(position);
+//            studentAdapter.notifyItemRemoved(position);
+//        }
+//    }
+//    private void deleteStudentFromFirestore(Student student) {
+//        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+//        firestore.collection("StudentCollection")
+//                .document(String.valueOf(student.getMssv()))
+//                .delete()
+//                .addOnSuccessListener(aVoid -> {
+//                    // Student deleted successfully from Firestore, now remove it from the local list
+//                    int position = studentList.indexOf(student);
+//                    if (position != -1) {
+//                        studentList.remove(position);
+//                        studentAdapter.notifyItemRemoved(position);
+//                    }
+//                    Toast.makeText(requireContext(), "Student deleted successfully.", Toast.LENGTH_SHORT).show();
+//                })
+//                .addOnFailureListener(e -> {
+//                    Toast.makeText(requireContext(), "Failed to delete student.", Toast.LENGTH_SHORT).show();
+//                    // If deletion fails, add the student back to the list
+//                    int position = studentList.indexOf(student);
+//                    if (position != -1) {
+//                        studentList.add(position, student);
+//                        studentAdapter.notifyItemInserted(position);
+//                    }
+//                });
+//    }
+
 }

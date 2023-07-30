@@ -16,6 +16,15 @@ import java.util.List;
 public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.ViewHolder> {
 
     private List<Student> studentList;
+    private OnItemClickListener onItemClickListener;
+
+    public interface OnItemClickListener {
+        void onItemClick(Student student);
+    }
+
+    public void setOnItemClickListener(OnItemClickListener onItemClickListener) {
+        this.onItemClickListener = onItemClickListener;
+    }
 
     public StudentAdapter(List<Student> studentList) {
         this.studentList = studentList;
@@ -40,6 +49,11 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.ViewHold
         holder.textViewName.setText("Name: " + student.getName());
         holder.textViewDTB.setText("DTB: " + student.getDTB());
         holder.textViewKhoa.setText("Khoa: " + student.getKhoa());
+        holder.itemView.setOnClickListener(view -> {
+            if (onItemClickListener != null) {
+                onItemClickListener.onItemClick(student);
+            }
+        });
     }
 
     @Override
